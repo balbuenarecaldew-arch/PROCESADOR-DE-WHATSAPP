@@ -1,0 +1,2495 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gastos WhatsApp - Procesador</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242837;
+    --border: #2e3348;
+    --text: #e2e4ed;
+    --text2: #8b90a5;
+    --accent: #6c72cb;
+    --accent2: #cb69c1;
+    --green: #4ade80;
+    --orange: #fb923c;
+    --red: #f87171;
+    --yellow: #fbbf24;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  .header {
+    background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 24px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .header .subtitle {
+    color: var(--text2);
+    font-size: 13px;
+    margin-top: 2px;
+  }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 60px 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: var(--surface);
+    margin-bottom: 24px;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(108, 114, 203, 0.05);
+  }
+  .upload-zone .icon { font-size: 48px; margin-bottom: 16px; }
+  .upload-zone p { color: var(--text2); font-size: 15px; }
+  .upload-zone .main-text { color: var(--text); font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+  }
+  .stat-card .label { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .value { font-size: 24px; font-weight: 700; margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .controls input, .controls select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+  }
+  .controls input { flex: 1; min-width: 200px; }
+  .controls select { min-width: 160px; }
+
+  .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: var(--border); }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    background: var(--surface);
+    padding: 4px;
+    border-radius: 10px;
+    width: fit-content;
+  }
+  .tab {
+    padding: 8px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text2);
+    transition: all 0.2s;
+    border: none;
+    background: none;
+    font-family: inherit;
+  }
+  .tab.active { background: var(--accent); color: white; }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* Messages list */
+  .messages-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding-right: 8px;
+  }
+  .messages-list::-webkit-scrollbar { width: 6px; }
+  .messages-list::-webkit-scrollbar-track { background: transparent; }
+  .messages-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .msg-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: grid;
+    grid-template-columns: 100px 140px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    font-size: 14px;
+    transition: border-color 0.2s;
+  }
+  .msg-row:hover { border-color: var(--accent); }
+  .msg-row.included { border-left: 3px solid var(--green); }
+  .msg-row.excluded { opacity: 0.5; border-left: 3px solid var(--red); }
+
+  .msg-date { color: var(--text2); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .msg-sender { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg-text { color: var(--text); font-size: 13px; line-height: 1.4; }
+  .msg-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    color: var(--green);
+    white-space: nowrap;
+  }
+
+  .msg-text .highlight {
+    background: rgba(108, 114, 203, 0.25);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+
+  /* Amount editor */
+  .amount-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--green);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 6px;
+    width: 130px;
+    text-align: right;
+    font-size: 14px;
+  }
+
+  .category-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 12px;
+  }
+
+  /* Image viewer */
+  .img-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    object-fit: cover;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    transition: transform 0.2s;
+  }
+  .img-thumb:hover { transform: scale(1.1); }
+
+  .thumb-btn {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+    line-height: 0;
+  }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-card {
+    max-width: 94vw;
+    max-height: 92vh;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+  .modal-overlay img {
+    max-width: 90vw;
+    max-height: 76vh;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    object-fit: contain;
+    background: #05060a;
+  }
+  .modal-info {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    max-width: 90vw;
+  }
+  .modal-title {
+    font-size: 12px;
+    color: var(--text2);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 6px;
+    word-break: break-all;
+  }
+  .modal-desc {
+    font-size: 14px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+  }
+  .modal-close {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--surface);
+    border: none;
+    color: var(--text);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 20px;
+    cursor: pointer;
+    z-index: 1001;
+  }
+
+  /* Summary output */
+  .summary-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 16px;
+  }
+  .summary-box pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    color: var(--text);
+  }
+
+  /* Progress */
+  .progress-bar {
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 16px 0;
+  }
+  .progress-bar .fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.3s;
+    border-radius: 2px;
+  }
+
+  .loading-text { color: var(--text2); font-size: 14px; text-align: center; padding: 20px; }
+
+  /* Responsive grid for detailed view */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 900px) {
+    .detail-grid { grid-template-columns: 1fr; }
+    .msg-row { grid-template-columns: 1fr; gap: 8px; }
+  }
+
+  .hidden { display: none !important; }
+
+  .toggle-btn {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  .toggle-btn.active { background: var(--green); color: var(--bg); border-color: var(--green); }
+
+  .chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .chip-money { background: rgba(74, 222, 128, 0.15); color: var(--green); }
+  .chip-image { background: rgba(108, 114, 203, 0.15); color: var(--accent); }
+  .chip-warning { background: rgba(251, 191, 36, 0.15); color: var(--yellow); }
+  .chip-method { background: rgba(251, 146, 60, 0.16); color: var(--orange); }
+  .chip-doc { background: rgba(226, 228, 237, 0.12); color: var(--text); }
+  .chip-duplicate { background: rgba(248, 113, 113, 0.16); color: var(--red); }
+
+  .result-info {
+    color: var(--text2);
+    font-size: 13px;
+    margin: -10px 0 16px;
+  }
+
+  .msg-row {
+    grid-template-columns: 36px 110px 150px minmax(0, 1fr) 230px;
+  }
+
+  .msg-row.review { border-left: 3px solid var(--yellow); }
+  .msg-row.duplicate { border-left: 3px solid var(--red); opacity: 0.62; }
+
+  .include-check {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--green);
+    cursor: pointer;
+  }
+
+  .confidence {
+    display: inline-block;
+    margin-top: 6px;
+    color: var(--text2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+  }
+
+  .row-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: stretch;
+  }
+
+  .row-editor .amount-input,
+  .row-editor .category-select {
+    width: 100%;
+  }
+
+  .file-chip {
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text2);
+    border-radius: 4px;
+    padding: 3px 7px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .payment-description {
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+  }
+
+  .context-note {
+    color: var(--yellow);
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .bulk-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 900px) {
+    .msg-row { grid-template-columns: 28px 1fr; }
+    .row-editor { grid-column: 1 / -1; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>📊 Procesador de Gastos — WhatsApp</h1>
+    <div class="subtitle">Procesamiento 100% local en tu navegador. No se envía nada a ningún servidor.</div>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Upload -->
+  <div class="upload-zone" id="uploadZone">
+    <div class="icon">📁</div>
+    <div class="main-text">Arrastrá el archivo ZIP acá o hacé clic para seleccionar</div>
+    <p>Chat exportado de WhatsApp (.zip con el .txt y las fotos)</p>
+    <input type="file" id="fileInput" accept=".zip" style="display:none">
+  </div>
+
+  <div class="progress-bar hidden" id="progressBar"><div class="fill" id="progressFill"></div></div>
+  <div class="loading-text hidden" id="loadingText"></div>
+
+  <!-- Stats -->
+  <div class="stats-bar hidden" id="statsBar">
+    <div class="stat-card">
+      <div class="label">Mensajes totales</div>
+      <div class="value" id="statTotal">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Comprobantes detectados</div>
+      <div class="value" id="statMoney" style="color:var(--green)">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Pendientes sin monto</div>
+      <div class="value" id="statImages" style="color:var(--accent)">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total estimado</div>
+      <div class="value" id="statSum" style="color:var(--yellow)">0</div>
+    </div>
+  </div>
+
+  <!-- Tabs & Controls -->
+  <div class="hidden" id="mainContent">
+    <div class="tabs">
+      <button class="tab active" data-tab="gastos">💰 Comprobantes</button>
+      <button class="tab" data-tab="todos">📋 Todos los mensajes</button>
+      <button class="tab" data-tab="imagenes">🖼️ Imágenes</button>
+      <button class="tab" data-tab="resumen">📄 Resumen para Claude</button>
+    </div>
+
+    <div class="controls">
+      <input type="text" id="searchBox" placeholder="Buscar en mensajes...">
+      <select id="filterSender"><option value="">Todos los remitentes</option></select>
+      <select id="filterCategory">
+        <option value="">Todas las categorías</option>
+        <option value="materiales">Materiales</option>
+        <option value="mano_obra">Mano de obra</option>
+        <option value="transporte">Transporte</option>
+        <option value="combustible">Combustible</option>
+        <option value="herramientas">Herramientas</option>
+        <option value="maquinaria">Maquinaria/equipos</option>
+        <option value="comida">Comida</option>
+        <option value="servicios">Servicios</option>
+        <option value="impuestos">Impuestos/tasas</option>
+        <option value="alquiler">Alquileres</option>
+        <option value="otros">Otros</option>
+      </select>
+      <select id="filterMethod">
+        <option value="">Todos los métodos</option>
+        <option value="transferencia">Transferencia</option>
+        <option value="deposito">Depósito</option>
+        <option value="efectivo">Efectivo</option>
+        <option value="tarjeta">Tarjeta</option>
+        <option value="cheque">Cheque</option>
+        <option value="qr_billetera">QR/billetera</option>
+        <option value="por_revisar">Por revisar</option>
+      </select>
+      <select id="filterStatus">
+        <option value="">Todos los estados</option>
+        <option value="included">Incluidos</option>
+        <option value="excluded">Excluidos</option>
+        <option value="duplicate">Duplicados</option>
+        <option value="no_amount">Sin monto</option>
+        <option value="review">Revisar</option>
+      </select>
+      <select id="sortBy">
+        <option value="date_desc">Más recientes</option>
+        <option value="date_asc">Más antiguos</option>
+        <option value="amount_desc">Monto mayor</option>
+        <option value="amount_asc">Monto menor</option>
+        <option value="confidence_desc">Mayor confianza</option>
+        <option value="sender_asc">Remitente A-Z</option>
+        <option value="category_asc">Categoría A-Z</option>
+      </select>
+      <div class="bulk-actions">
+        <button class="btn btn-secondary" onclick="bulkSetIncluded(true)">Seleccionar visibles</button>
+        <button class="btn btn-secondary" onclick="bulkSetIncluded(false)">Quitar visibles</button>
+      </div>
+      <button class="btn btn-primary" onclick="exportExcel()">📊 Exportar Excel</button>
+      <button class="btn btn-secondary" onclick="exportCSV()">📥 Exportar CSV</button>
+      <button class="btn btn-primary" onclick="generateSummary()">📄 Generar resumen</button>
+    </div>
+    <div class="result-info" id="resultInfo"></div>
+
+    <!-- Tab contents -->
+    <div id="tab-gastos" class="tab-content">
+      <div class="messages-list" id="gastosList"></div>
+    </div>
+    <div id="tab-todos" class="tab-content hidden">
+      <div class="messages-list" id="todosList"></div>
+    </div>
+    <div id="tab-imagenes" class="tab-content hidden">
+      <div id="imageGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;"></div>
+    </div>
+    <div id="tab-resumen" class="tab-content hidden">
+      <p style="color:var(--text2);margin-bottom:12px;font-size:14px;">
+        Copiá este resumen y pegalo en el chat con Claude para un análisis detallado sin gastar créditos procesando el ZIP completo.
+      </p>
+      <button class="btn btn-primary" onclick="copySummary()" style="margin-bottom:16px;">📋 Copiar al portapapeles</button>
+      <div class="summary-box"><pre id="summaryText">Hacé clic en "Generar resumen" primero.</pre></div>
+    </div>
+  </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal-overlay" id="imgModal">
+  <button class="modal-close" onclick="closeModal()">✕</button>
+  <div class="modal-card">
+    <img id="modalImg" src="">
+    <div class="modal-info">
+      <div class="modal-title" id="modalTitle"></div>
+      <div class="modal-desc" id="modalDesc"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ───
+let allMessages = [];
+let imageFiles = {};
+let imageBlobs = {};
+let attachmentFiles = {};
+let attachmentBlobs = {};
+let activeTab = 'gastos';
+let ocrEnginePromise = null;
+
+const OCR_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+
+const CATEGORY_OPTIONS = [
+  ['materiales', 'Materiales'],
+  ['mano_obra', 'Mano de obra'],
+  ['transporte', 'Transporte'],
+  ['combustible', 'Combustible'],
+  ['herramientas', 'Herramientas'],
+  ['maquinaria', 'Maquinaria/equipos'],
+  ['comida', 'Comida'],
+  ['servicios', 'Servicios'],
+  ['impuestos', 'Impuestos/tasas'],
+  ['alquiler', 'Alquileres'],
+  ['otros', 'Otros']
+];
+
+const METHOD_OPTIONS = [
+  ['transferencia', 'Transferencia'],
+  ['deposito', 'Depósito'],
+  ['efectivo', 'Efectivo'],
+  ['tarjeta', 'Tarjeta'],
+  ['cheque', 'Cheque'],
+  ['qr_billetera', 'QR/billetera'],
+  ['por_revisar', 'Por revisar']
+];
+
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) processZip(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) processZip(e.target.files[0]); });
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    activeTab = tab.dataset.tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + activeTab).classList.remove('hidden');
+    renderAll();
+  });
+});
+
+// ─── Process ZIP ───
+async function processZip(file) {
+  const pb = document.getElementById('progressBar');
+  const pf = document.getElementById('progressFill');
+  const lt = document.getElementById('loadingText');
+
+  resetState();
+  pb.classList.remove('hidden');
+  lt.classList.remove('hidden');
+  lt.textContent = 'Descomprimiendo archivo...';
+  pf.style.width = '10%';
+
+  try {
+    if (typeof JSZip === 'undefined') {
+      throw new Error('No se cargó la librería ZIP. Abrí la app con internet la primera vez o instalá JSZip localmente.');
+    }
+    const zip = await JSZip.loadAsync(file);
+    const entries = Object.keys(zip.files).filter(e => !zip.files[e].dir && !e.startsWith('__MACOSX'));
+    pf.style.width = '25%';
+    lt.textContent = `Encontrados ${entries.length} archivos...`;
+
+    let chatTxt = '';
+    const txtFiles = entries.filter(e => /\.txt$/i.test(e)).sort();
+    if (!txtFiles.length) throw new Error('No encontré ningún .txt dentro del ZIP exportado de WhatsApp.');
+
+    for (const tf of txtFiles) {
+      const content = await zip.files[tf].async('string');
+      chatTxt += content + '\n';
+    }
+
+    pf.style.width = '45%';
+    lt.textContent = 'Procesando mensajes...';
+    allMessages = parseWhatsApp(chatTxt);
+
+    const mediaEntries = entries.filter(isSupportedAttachmentName).sort();
+    lt.textContent = `Cargando ${mediaEntries.length} adjuntos...`;
+
+    let loaded = 0;
+    for (const path of mediaEntries) {
+      const blob = await zip.files[path].async('blob');
+      const name = fileBaseName(path);
+      const url = URL.createObjectURL(blob);
+      const meta = {
+        name,
+        path,
+        url,
+        blob,
+        extension: fileExtension(name),
+        type: attachmentType(name),
+        ocrText: '',
+        ocrError: '',
+        visualHash: ''
+      };
+      attachmentFiles[name] = meta;
+      attachmentBlobs[name] = url;
+      if (meta.type === 'image') {
+        imageFiles[name] = meta;
+        imageBlobs[name] = url;
+      }
+      loaded++;
+      pf.style.width = `${45 + (loaded / Math.max(mediaEntries.length, 1)) * 35}%`;
+      if (loaded % 20 === 0) {
+        lt.textContent = `Cargando adjuntos... ${loaded}/${mediaEntries.length}`;
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+
+    linkAttachmentsToMessages();
+    enrichPaymentContext();
+    await recognizeImageText(lt, pf);
+    pf.style.width = '92%';
+    lt.textContent = 'Detectando comprobantes, montos y métodos de pago...';
+    analyzeReceipts();
+
+    pf.style.width = '100%';
+    lt.textContent = 'Listo.';
+
+    setTimeout(() => {
+      pb.classList.add('hidden');
+      lt.classList.add('hidden');
+      uploadZone.classList.add('hidden');
+      document.getElementById('statsBar').classList.remove('hidden');
+      document.getElementById('mainContent').classList.remove('hidden');
+      renderAll();
+    }, 350);
+  } catch (err) {
+    lt.textContent = 'Error: ' + err.message;
+    console.error(err);
+  }
+}
+
+async function recognizeImageText(lt, pf) {
+  const names = Object.keys(imageFiles);
+  if (!names.length) return;
+
+  lt.textContent = 'Preparando lectura de fotos...';
+  const ready = await ensureOcrEngine().catch(() => false);
+  if (!ready || !window.Tesseract) {
+    lt.textContent = 'OCR no disponible: se procesan textos y adjuntos.';
+    await new Promise(r => setTimeout(r, 700));
+    return;
+  }
+
+  let worker = null;
+  try {
+    worker = await createOcrWorker();
+    for (let i = 0; i < names.length; i++) {
+      const name = names[i];
+      const meta = imageFiles[name];
+      lt.textContent = `Leyendo texto de fotos... ${i + 1}/${names.length}`;
+      pf.style.width = `${80 + ((i + 1) / Math.max(names.length, 1)) * 10}%`;
+
+      try {
+        const source = await imageSourceForOcr(meta);
+        const hash = visualHashFromCanvas(source);
+        if (hash) {
+          meta.visualHash = hash;
+          attachmentFiles[name].visualHash = hash;
+        }
+        const result = await worker.recognize(source);
+        const text = cleanOcrText(result && result.data ? result.data.text : '');
+        meta.ocrText = text;
+        attachmentFiles[name].ocrText = text;
+        attachOcrTextToMessages(name, text);
+      } catch (err) {
+        meta.ocrError = err.message || String(err);
+      }
+
+      if (i % 3 === 0) await new Promise(r => setTimeout(r, 0));
+    }
+  } catch (err) {
+    lt.textContent = 'OCR no disponible: se procesan textos y adjuntos.';
+    await new Promise(r => setTimeout(r, 700));
+  } finally {
+    if (worker) await worker.terminate().catch(() => {});
+  }
+}
+
+function visualHashFromCanvas(source) {
+  if (!source || !source.getContext || !document.createElement) return '';
+  try {
+    const size = 32;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext && canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return '';
+    ctx.drawImage(source, 0, 0, size, size);
+    const pixels = ctx.getImageData(0, 0, size, size).data;
+    let hash = 'v1:';
+    for (let i = 0; i < pixels.length; i += 4) {
+      const gray = Math.round(pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114);
+      hash += Math.max(0, Math.min(15, Math.round(gray / 17))).toString(16);
+    }
+    return hash;
+  } catch (err) {
+    return '';
+  }
+}
+
+async function imageSourceForOcr(meta) {
+  if (!meta || !meta.blob || !window.createImageBitmap || !document.createElement) return meta.blob || meta.url;
+  try {
+    const bitmap = await createImageBitmap(meta.blob);
+    const targetWidth = Math.min(1800, Math.max(bitmap.width * 1.8, bitmap.width));
+    const scale = targetWidth / bitmap.width;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext && canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return meta.blob || meta.url;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = img.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+      const high = Math.max(0, Math.min(255, (gray - 128) * 1.45 + 128));
+      data[i] = data[i + 1] = data[i + 2] = high;
+    }
+    ctx.putImageData(img, 0, 0);
+    return canvas;
+  } catch (err) {
+    return meta.blob || meta.url;
+  }
+}
+
+async function createOcrWorker() {
+  try {
+    return await Tesseract.createWorker('spa+eng');
+  } catch (err) {
+    return await Tesseract.createWorker('eng');
+  }
+}
+
+function ensureOcrEngine() {
+  if (window.Tesseract) return Promise.resolve(true);
+  if (ocrEnginePromise) return ocrEnginePromise;
+  ocrEnginePromise = new Promise(resolve => {
+    const script = document.createElement('script');
+    script.src = OCR_SCRIPT_URL;
+    script.async = true;
+    script.onload = () => resolve(!!window.Tesseract);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+  return ocrEnginePromise;
+}
+
+function cleanOcrText(text) {
+  return prepareDetectionText(text)
+    .replace(/[|_]{2,}/g, ' ')
+    .replace(/\bG[S5]\b/gi, 'GS')
+    .replace(/\bP[VY]G\b/gi, 'PYG')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function attachOcrTextToMessages(name, text) {
+  if (!text) return;
+  for (const msg of allMessages) {
+    if (!msg.attachments.includes(name)) continue;
+    msg.ocrText = [msg.ocrText, text].filter(Boolean).join('\n\n');
+  }
+}
+
+function resetState() {
+  Object.values(attachmentBlobs).forEach(url => URL.revokeObjectURL(url));
+  allMessages = [];
+  imageFiles = {};
+  imageBlobs = {};
+  attachmentFiles = {};
+  attachmentBlobs = {};
+}
+
+// ─── Parse WhatsApp Chat ───
+function parseWhatsApp(txt) {
+  const lines = txt.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const msgs = [];
+  const msgRegexes = [
+    /^(\d{1,2}\/\d{1,2}\/\d{2,4}),?\s+(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[ap]\.?\s*m\.?)?)\s*[-–—]\s*([^:]+):\s*([\s\S]*)/i,
+    /^\[(\d{1,2}\/\d{1,2}\/\d{2,4}),?\s+(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[ap]\.?\s*m\.?)?)\]\s*([^:]+?):\s*([\s\S]*)/i
+  ];
+  const mediaRegex = /(?:<Multimedia omitido>|<Media omitted>|archivo adjunto|image omitted|audio omitted|video omitted|sticker omitted|\u200e?(?:IMG|VID|AUD|PTT|DOC|STK)-|\.(?:jpg|jpeg|png|webp|gif|pdf|docx?|xlsx?|xls|csv)\b)/i;
+
+  for (const line of lines) {
+    const match = msgRegexes.map(rx => line.match(rx)).find(Boolean);
+    if (match) {
+      const [, date, time, sender, text] = match;
+      const cleanText = (text || '').trim();
+      const parsedDate = parseDateTime(date, time);
+      msgs.push({
+        id: msgs.length,
+        date: date.trim(),
+        time: time.trim(),
+        dateISO: parsedDate.iso,
+        timestamp: parsedDate.timestamp,
+        sender: sender.trim(),
+        text: cleanText,
+        isMedia: mediaRegex.test(cleanText),
+        attachedFiles: extractFileNames(cleanText),
+        attachments: [],
+        images: [],
+        amount: null,
+        currency: 'PYG',
+        amountCandidates: [],
+        category: '',
+        paymentMethod: 'por_revisar',
+        receiptType: '',
+        confidence: 0,
+        reasons: [],
+        contextText: '',
+        ocrText: '',
+        linkedTo: null,
+        linkedMedia: [],
+        duplicateOf: null,
+        duplicateReason: '',
+        isReceipt: false,
+        included: false
+      });
+    } else if (msgs.length > 0) {
+      msgs[msgs.length - 1].text += '\n' + line;
+      msgs[msgs.length - 1].attachedFiles = extractFileNames(msgs[msgs.length - 1].text);
+    }
+  }
+  return msgs;
+}
+
+function parseDateTime(date, time) {
+  const parts = date.split('/').map(p => parseInt(p, 10));
+  const day = parts[0] || 1;
+  const month = parts[1] || 1;
+  let year = parts[2] || new Date().getFullYear();
+  if (year < 100) year += year >= 70 ? 1900 : 2000;
+
+  let cleanTime = normalizeText(time).replace(/\s+/g, ' ').trim();
+  const isPm = /\bp\.?\s*m\.?\b|\bpm\b/.test(cleanTime);
+  const isAm = /\ba\.?\s*m\.?\b|\bam\b/.test(cleanTime);
+  cleanTime = cleanTime.replace(/[ap]\.?\s*m\.?/g, '').replace(/\b(am|pm)\b/g, '').trim();
+  const t = cleanTime.split(':').map(p => parseInt(p, 10));
+  let hour = t[0] || 0;
+  const minute = t[1] || 0;
+  const second = t[2] || 0;
+  if (isPm && hour < 12) hour += 12;
+  if (isAm && hour === 12) hour = 0;
+
+  const dt = new Date(year, month - 1, day, hour, minute, second);
+  return {
+    iso: Number.isNaN(dt.getTime()) ? '' : dt.toISOString().slice(0, 10),
+    timestamp: Number.isNaN(dt.getTime()) ? 0 : dt.getTime()
+  };
+}
+
+function extractFileNames(text) {
+  const files = new Set();
+  const pattern = /([\w .()\-ÁÉÍÓÚÜÑáéíóúüñ]+?\.(?:jpg|jpeg|png|webp|gif|pdf|doc|docx|xls|xlsx|csv|mp4|opus|mp3|m4a|aac))/gi;
+  let m;
+  while ((m = pattern.exec(text)) !== null) files.add(fileBaseName(m[1].trim()));
+
+  const waPattern = /\b((?:IMG|VID|AUD|PTT|DOC|STK)-\d{8}-WA\d+\.[a-z0-9]+)\b/gi;
+  while ((m = waPattern.exec(text)) !== null) files.add(m[1]);
+  return [...files];
+}
+
+// ─── Attachments ───
+function linkAttachmentsToMessages() {
+  for (const msg of allMessages) {
+    for (const name of msg.attachedFiles) addAttachmentToMessage(msg, name);
+  }
+
+  const unlinked = Object.keys(attachmentFiles).filter(name => !allMessages.some(m => m.attachments.includes(name)));
+  const mediaMsgsByDate = new Map();
+
+  for (const msg of allMessages) {
+    if (!msg.isMedia || msg.attachments.length) continue;
+    const key = dateKeyFromMessage(msg);
+    if (!mediaMsgsByDate.has(key)) mediaMsgsByDate.set(key, []);
+    mediaMsgsByDate.get(key).push(msg);
+  }
+
+  for (const name of unlinked) {
+    const key = dateKeyFromFile(name);
+    const queue = mediaMsgsByDate.get(key) || [];
+    const msg = queue.find(m => !m.attachments.length) || queue[0];
+    if (msg) addAttachmentToMessage(msg, name);
+  }
+}
+
+function enrichPaymentContext() {
+  for (const msg of allMessages) {
+    msg.contextText = '';
+    msg.linkedTo = null;
+    msg.linkedMedia = [];
+  }
+
+  for (const mediaMsg of allMessages) {
+    if (!mediaMsg.attachments.length || !isBareMediaMessage(mediaMsg)) continue;
+    const target = findNearbyPaymentDescription(mediaMsg);
+    if (!target) continue;
+
+    for (const name of mediaMsg.attachments) addAttachmentToMessage(target, name);
+    target.linkedMedia.push(mediaMsg.id);
+    mediaMsg.linkedTo = target.id;
+    mediaMsg.contextText = target.text;
+  }
+
+  for (const msg of allMessages) {
+    if (msg.contextText) continue;
+    const linkedDescriptions = (msg.linkedMedia || [])
+      .map(id => usefulMessageText(allMessages[id] && allMessages[id].text))
+      .filter(Boolean);
+    if (linkedDescriptions.length) msg.contextText = linkedDescriptions.join('\n');
+  }
+}
+
+function findNearbyPaymentDescription(mediaMsg) {
+  let best = null;
+  let bestScore = 0;
+
+  for (const candidate of allMessages) {
+    if (candidate.id === mediaMsg.id) continue;
+    if (candidate.dateISO !== mediaMsg.dateISO) continue;
+    const useful = usefulMessageText(candidate.text);
+    if (!useful) continue;
+
+    const minutes = Math.abs((candidate.timestamp || 0) - (mediaMsg.timestamp || 0)) / 60000;
+    const distance = Math.abs(candidate.id - mediaMsg.id);
+    if (minutes > 10 || distance > 3) continue;
+
+    const info = detectAmountsFromText(useful);
+    const hasSignal = !!info.best || hasReceiptKeyword(useful) || detectCategory(useful) !== 'otros' || detectPaymentMethod(useful) !== 'por_revisar';
+    if (!hasSignal) continue;
+    if (candidate.sender !== mediaMsg.sender && !info.best && detectPaymentMethod(useful) === 'por_revisar') continue;
+
+    let score = 60 - Math.min(distance, 12) * 3 - Math.min(minutes, 30);
+    if (candidate.sender === mediaMsg.sender) score += 18;
+    if (candidate.id > mediaMsg.id) score += 22;
+    if (candidate.id < mediaMsg.id) score -= 8;
+    if (distance <= 2) score += 18;
+    if (info.best) score += 35;
+    if (hasReceiptKeyword(useful)) score += 20;
+    if (detectPaymentMethod(useful) !== 'por_revisar') score += 14;
+    if (candidate.attachments.length) score -= 12;
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = candidate;
+    }
+  }
+
+  return bestScore >= 45 ? best : null;
+}
+
+function isBareMediaMessage(msg) {
+  return msg.isMedia && !usefulMessageText(msg.text);
+}
+
+function usefulMessageText(text) {
+  const cleaned = prepareDetectionText(text)
+    .replace(/<\s*(multimedia omitido|media omitted)\s*>/gi, ' ')
+    .replace(/\b(?:archivo adjunto|image omitted|audio omitted|video omitted|sticker omitted)\b/gi, ' ')
+    .replace(/\b(?:IMG|VID|AUD|PTT|DOC|STK)-\d{8}-WA\d+\.[a-z0-9]+\b/gi, ' ')
+    .replace(/[\w .()\-ÁÉÍÓÚÜÑáéíóúüñ]+?\.(?:jpg|jpeg|png|webp|gif|pdf|doc|docx|xls|xlsx|csv|mp4|opus|mp3|m4a|aac)\b/gi, ' ')
+    .replace(/\(\s*\)/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return hasJunkOnlyDescription(cleaned) ? '' : cleaned;
+}
+
+function hasJunkOnlyDescription(text) {
+  const n = normalizeText(text)
+    .replace(/[(){}\[\].,:;_\-–—]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!n) return true;
+  return /^(c.?digo|codigo|cod|code|sin texto|adjunto|imagen|foto|documento|archivo)$/i.test(n);
+}
+
+function addAttachmentToMessage(msg, name) {
+  const base = fileBaseName(name);
+  if (!attachmentFiles[base] || msg.attachments.includes(base)) return;
+  msg.attachments.push(base);
+  if (attachmentFiles[base].type === 'image' && !msg.images.includes(base)) msg.images.push(base);
+}
+
+function isSupportedAttachmentName(path) {
+  return /\.(jpg|jpeg|png|webp|gif|pdf|doc|docx|xls|xlsx|csv)$/i.test(path);
+}
+
+function attachmentType(name) {
+  if (/\.(jpg|jpeg|png|webp|gif)$/i.test(name)) return 'image';
+  if (/\.pdf$/i.test(name)) return 'pdf';
+  if (/\.(xls|xlsx|csv)$/i.test(name)) return 'sheet';
+  if (/\.(doc|docx)$/i.test(name)) return 'document';
+  return 'file';
+}
+
+function fileBaseName(path) {
+  return String(path).split(/[\\/]/).pop();
+}
+
+function fileExtension(name) {
+  const m = String(name).match(/\.([^.]+)$/);
+  return m ? m[1].toLowerCase() : '';
+}
+
+function dateKeyFromFile(name) {
+  const m = String(name).match(/(?:IMG|VID|AUD|PTT|DOC|STK)-(\d{8})/i);
+  return m ? m[1] : '';
+}
+
+function dateKeyFromMessage(msg) {
+  if (!msg.dateISO) return '';
+  return msg.dateISO.replace(/-/g, '');
+}
+
+// ─── Detection ───
+function analyzeReceipts() {
+  for (const msg of allMessages) {
+    msg.duplicateOf = null;
+    msg.duplicateReason = '';
+    const detectionText = getDetectionText(msg);
+    const amountInfo = detectAmountsFromText(detectionText);
+    msg.amountCandidates = amountInfo.candidates;
+    if (amountInfo.best) {
+      msg.amount = amountInfo.best.value;
+      msg.currency = amountInfo.best.currency;
+    }
+
+    msg.category = detectCategory(detectionText);
+    msg.paymentMethod = detectPaymentMethod(detectionText);
+    msg.receiptType = detectReceiptType(msg, detectionText);
+
+    const signals = scoreReceipt(msg, detectionText);
+    msg.confidence = signals.confidence;
+    msg.reasons = signals.reasons;
+    msg.isReceipt = signals.isReceipt;
+    msg.included = msg.isReceipt && shouldIncludeByDefault(msg);
+    if (msg.linkedTo !== null && isBareMediaMessage(msg)) {
+      if (shouldSplitLinkedMedia(msg)) {
+        msg.isReceipt = !!msg.amount || msg.attachments.length > 0;
+        msg.included = !!msg.amount;
+        if (!msg.reasons.includes('imagen separada de grupo')) msg.reasons.push('imagen separada de grupo');
+      } else {
+        msg.amount = null;
+        msg.amountCandidates = [];
+        msg.included = false;
+      }
+    }
+  }
+  splitGroupedMediaReceipts();
+  markDuplicateReceipts();
+  runComparativeReviewPasses();
+}
+
+function shouldIncludeByDefault(msg) {
+  if (!msg.isReceipt) return false;
+  if (msg.amount) return true;
+  return false;
+}
+
+function shouldSplitLinkedMedia(msg) {
+  if (msg.linkedTo === null || !allMessages[msg.linkedTo]) return false;
+  const source = allMessages[msg.linkedTo];
+  return (source.linkedMedia || []).length > 1;
+}
+
+function splitGroupedMediaReceipts() {
+  for (const msg of allMessages) {
+    if ((msg.linkedMedia || []).length <= 1) continue;
+    const splitRows = msg.linkedMedia
+      .map(id => allMessages[id])
+      .filter(m => m && m.isReceipt && m.attachments.length);
+    if (!splitRows.length) continue;
+    msg.isReceipt = false;
+    msg.included = false;
+    if (!msg.reasons.includes('grupo dividido por imagen')) msg.reasons.push('grupo dividido por imagen');
+  }
+}
+
+function getDetectionText(msg) {
+  const parts = [msg.text, msg.contextText, ocrTextForMessage(msg)];
+  if (msg.linkedTo !== null && allMessages[msg.linkedTo]) parts.push(allMessages[msg.linkedTo].text);
+  return parts.filter(Boolean).join('\n');
+}
+
+function ocrTextForMessage(msg) {
+  const parts = [msg.ocrText];
+  for (const name of msg.attachments || []) {
+    const meta = attachmentFiles[name];
+    if (meta && meta.ocrText) parts.push(meta.ocrText);
+  }
+  return [...new Set(parts.filter(Boolean))].join('\n\n');
+}
+
+function detectAmountsFromText(text) {
+  const txt = prepareDetectionText(text);
+  const candidates = [];
+  const add = (raw, score, currency, context) => {
+    const value = parseAmount(raw);
+    addValue(value, raw, score, currency, context);
+  };
+  const addValue = (value, raw, score, currency, context) => {
+    const finalCurrency = currency || detectCurrency(context || raw);
+    const min = finalCurrency === 'USD' ? 1 : 10000;
+    const max = finalCurrency === 'USD' ? 1000000 : 500000000;
+    const cleanContext = prepareDetectionText(context || raw);
+    if (value >= min && value <= max && isLikelyAmount(value, raw, cleanContext)) {
+      const finalScore = score + amountContextScore(cleanContext, value, finalCurrency);
+      candidates.push({ value, raw: String(raw).trim(), currency: finalCurrency, score: finalScore, context: cleanContext });
+    }
+  };
+
+  const patterns = [
+    { re: /(?:₲|gs\.?|g\.?|pyg|guaran[ií](?:es)?)\s*[:./\\\-–—]?\s*([\d][\d\s.,-]{2,})/gi, score: 100, currency: 'PYG' },
+    { re: /([\d][\d\s.,-]{2,})\s*(?:₲|gs\.?|g\.?|guaran[ií](?:es)?|pyg)(?=\s|$|[.,;:)\]])/gi, score: 100, currency: 'PYG' },
+    { re: /(?:usd|us\$|\$|d[oó]lares?)\s*[:./\\\-–—]?\s*([\d][\d\s.,-]{1,})/gi, score: 96, currency: 'USD' },
+    { re: /([\d][\d\s.,-]{1,})\s*(?:usd|d[oó]lares?)(?=\s|$|[.,;:)\]])/gi, score: 96, currency: 'USD' },
+    { re: /\b(?:total|importe|monto|pago|pagado|pagamos|pague|pagu[eé]|se pago|se pag[oó]|debitado|debito|débito|costo|precio|entrega|anticipo|adelanto|saldo|abono|transferencia|transf|dep[oó]sito|depositado|efectivo|cheque|factura|recibo|comprobante|vale|compra|cancelado|cobro|cobrado|gasto|rendici[oó]n|seña|sena|mano de obra|jornal|flete|material(?:es)?|cemento|arena|piedra|hierro|varilla|ladrillo|bloque|pintura|ceramica|cerámica|madera|chapa|silicona|tornillo|cable|caño|cano|tubo)\b[^\d₲$]{0,90}([\d][\d\s.,-]{2,})/gi, score: 82, currency: null },
+    { re: /[=:]\s*([\d]{1,3}(?:[.,\s]\d{3})+(?:[,.]\d{1,2})?|\d{5,10})/gi, score: 72, currency: null },
+    { re: /(?:^|\n)\s*([\d]{1,3}(?:[.,\s]\d{3})+(?:[,.]\d{1,2})?|\d{5,10})\s*(?:$|\n)/gm, score: 66, currency: null }
+  ];
+
+  for (const line of txt.split(/\n+/)) {
+    const nLine = normalizeText(line);
+    if (!hasStrongAmountLabel(nLine)) continue;
+    const lineAmounts = line.match(/\d{1,3}(?:[.,\s]\d{3})+(?:[,.]\d{1,2})?|\d{4,10}/g) || [];
+    for (const raw of lineAmounts) {
+      const strongScore = /\b(monto|importe)\s+(debitado|pagado)|\b(debitado|pagado)\b/.test(nLine) ? 230 : 190;
+      add(raw, strongScore, detectCurrency(line), line);
+    }
+  }
+
+  for (const item of patterns) {
+    item.re.lastIndex = 0;
+    let m;
+    while ((m = item.re.exec(txt)) !== null) add(m[1], item.score, item.currency, contextAround(txt, m.index, m[0].length));
+  }
+
+  const millionPattern = /(\d+(?:[,.]\d+)?)\s*mill[oó]n(?:es)?/gi;
+  let m;
+  while ((m = millionPattern.exec(txt)) !== null) {
+    const n = parseFloat(String(m[1]).replace(',', '.'));
+    if (!Number.isNaN(n)) addValue(Math.round(n * 1000000), m[0], 90, 'PYG', contextAround(txt, m.index, m[0].length));
+  }
+
+  const thousandWordPattern = /\b(\d+(?:[,.]\d+)?)\s*(?:mil|k)(?=\b|gs|g|₲|pyg|\s|$)/gi;
+  while ((m = thousandWordPattern.exec(txt)) !== null) {
+    const n = parseFloat(String(m[1]).replace(',', '.'));
+    if (!Number.isNaN(n)) addValue(Math.round(n * 1000), m[0], 72, 'PYG', contextAround(txt, m.index, m[0].length));
+  }
+
+  const broadAmount = /\b(\d{1,3}(?:[.,\s]\d{3})+(?:[,.]\d{1,2})?|\d{4,10})\b/g;
+  while ((m = broadAmount.exec(txt)) !== null) add(m[1], 48, null, contextAround(txt, m.index, m[0].length));
+
+  const compactCurrencyPattern = /\b(\d{3,10})(?=(?:gs|g|pyg|₲)\b)/gi;
+  while ((m = compactCurrencyPattern.exec(txt)) !== null) add(m[1], 92, 'PYG', contextAround(txt, m.index, m[0].length));
+
+  const unique = [];
+  const seen = new Set();
+  for (const c of candidates) {
+    const key = `${c.currency}-${c.value}-${c.raw}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(c);
+  }
+
+  unique.sort((a, b) => b.score - a.score || b.value - a.value);
+  return { best: unique[0] || null, candidates: unique };
+}
+
+function hasStrongAmountLabel(text) {
+  const n = normalizeText(text);
+  if (/\b(saldo anterior|saldo actual|saldo disponible|saldo)\b/.test(n) && !/\b(monto|importe|debitado|pagado|pago)\b/.test(n)) return false;
+  return /\b(monto|importe|total)\s*(debitado|pagado|abonado|transferido|a pagar)?\b|\b(debitado|pagado|abonado|transferido)\b/.test(n);
+}
+
+function contextAround(text, index, length, radius = 38) {
+  const start = Math.max(0, index - radius);
+  const end = Math.min(text.length, index + length + radius);
+  return text.slice(start, end);
+}
+
+function markDuplicateReceipts() {
+  markAttachmentOnlyDuplicates();
+
+  const receipts = allMessages
+    .filter(m => m.isReceipt && m.amount)
+    .sort((a, b) => a.timestamp - b.timestamp || a.id - b.id);
+
+  for (let i = 0; i < receipts.length; i++) {
+    const a = receipts[i];
+    if (a.duplicateOf !== null) continue;
+
+    for (let j = i + 1; j < receipts.length; j++) {
+      const b = receipts[j];
+      if (b.duplicateOf !== null) continue;
+      if (b.currency !== a.currency || b.amount !== a.amount) continue;
+
+      const hours = Math.abs((b.timestamp || 0) - (a.timestamp || 0)) / 3600000;
+      if (hours > 36 && a.dateISO !== b.dateISO) continue;
+
+      const duplicate = duplicateEvidence(a, b, hours);
+      if (!duplicate.isDuplicate) continue;
+
+      const keeper = chooseDuplicateKeeper(a, b);
+      const dupe = keeper.id === a.id ? b : a;
+      mergeDuplicateIntoKeeper(keeper, dupe);
+      dupe.duplicateOf = keeper.id;
+      dupe.duplicateReason = duplicate.reason;
+      dupe.included = false;
+      dupe.confidence = Math.max(dupe.confidence, 55);
+      if (!dupe.reasons.includes('duplicado probable')) dupe.reasons.push('duplicado probable');
+      if (keeper.id !== a.id) break;
+    }
+  }
+}
+
+function mergeDuplicateIntoKeeper(keeper, dupe) {
+  for (const name of dupe.attachments) addAttachmentToMessage(keeper, name);
+  for (const img of dupe.images) {
+    if (!keeper.images.includes(img)) keeper.images.push(img);
+  }
+  for (const id of dupe.linkedMedia || []) {
+    if (!keeper.linkedMedia.includes(id)) keeper.linkedMedia.push(id);
+  }
+  if (!keeper.contextText && dupe.contextText) keeper.contextText = dupe.contextText;
+}
+
+function markAttachmentOnlyDuplicates() {
+  // Sin monto o número de operación no hay evidencia suficiente para unir fotos distintas:
+  // en este tipo de chat suelen ser comprobantes diferentes enviados en la misma hora.
+}
+
+function runComparativeReviewPasses() {
+  for (let pass = 0; pass < 2; pass++) {
+    let changed = false;
+    const receipts = allMessages
+      .filter(m => m.isReceipt && m.amount && m.duplicateOf === null)
+      .sort((a, b) => a.timestamp - b.timestamp || a.id - b.id);
+
+    for (let i = 0; i < receipts.length; i++) {
+      const a = receipts[i];
+      if (a.duplicateOf !== null) continue;
+
+      for (let j = i + 1; j < receipts.length; j++) {
+        const b = receipts[j];
+        if (b.duplicateOf !== null) continue;
+        if (a.amount !== b.amount || a.currency !== b.currency) continue;
+
+        const review = comparativeDuplicateEvidence(a, b);
+        if (!review.isDuplicate) continue;
+
+        const keeper = chooseDuplicateKeeper(a, b);
+        const dupe = keeper.id === a.id ? b : a;
+        mergeDuplicateIntoKeeper(keeper, dupe);
+        dupe.duplicateOf = keeper.id;
+        dupe.duplicateReason = review.reason;
+        dupe.included = false;
+        if (!dupe.reasons.includes('duplicado probable')) dupe.reasons.push('duplicado probable');
+        changed = true;
+        if (keeper.id !== a.id) break;
+      }
+    }
+    if (!changed) break;
+  }
+}
+
+function comparativeDuplicateEvidence(a, b) {
+  const visual = visualDuplicateEvidence(a, b);
+  if (visual.isDuplicate) return visual;
+
+  const ocr = ocrDuplicateEvidence(a, b);
+  if (ocr.isDuplicate) return ocr;
+
+  return { isDuplicate: false, reason: '' };
+}
+
+function duplicateEvidence(a, b, hours) {
+  const sharedAttachment = a.attachments.some(name => b.attachments.includes(name));
+  if (sharedAttachment) return { isDuplicate: true, reason: 'mismo adjunto' };
+
+  const bothHaveDistinctAttachments = a.attachments.length > 0 && b.attachments.length > 0;
+  const aTx = transactionFingerprint(a);
+  const bTx = transactionFingerprint(b);
+  if (aTx && bTx && aTx === bTx) return { isDuplicate: true, reason: 'mismo nro. de operación/comprobante' };
+
+  const visual = visualDuplicateEvidence(a, b);
+  if (visual.isDuplicate) return visual;
+
+  const ocr = ocrDuplicateEvidence(a, b);
+  if (ocr.isDuplicate) return ocr;
+
+  const sameSender = a.sender && b.sender && normalizeText(a.sender) === normalizeText(b.sender);
+  const sameExactTime = (a.date === b.date && a.time === b.time) || (a.timestamp && b.timestamp && Math.abs(a.timestamp - b.timestamp) < 60000);
+  if (sameSender && sameExactTime && !bothHaveDistinctAttachments) {
+    return { isDuplicate: true, reason: 'mismo remitente, fecha/hora y monto' };
+  }
+
+  const aText = receiptDedupeText(a);
+  const bText = receiptDedupeText(b);
+  const sim = tokenSimilarity(aText, bText);
+  const sameMethod = a.paymentMethod === b.paymentMethod || a.paymentMethod === 'por_revisar' || b.paymentMethod === 'por_revisar';
+
+  if (bothHaveDistinctAttachments) return { isDuplicate: false, reason: '' };
+
+  if (aText && bText && normalizeForDuplicate(aText) === normalizeForDuplicate(bText)) {
+    return { isDuplicate: true, reason: 'misma descripción y monto' };
+  }
+  if (aText && bText && (aText.includes(bText) || bText.includes(aText)) && hours <= 12) {
+    return { isDuplicate: true, reason: 'descripción repetida y mismo monto' };
+  }
+  if (sim >= 0.78 && hours <= 24 && sameMethod) {
+    return { isDuplicate: true, reason: `descripción similar (${Math.round(sim * 100)}%)` };
+  }
+  if (sim >= 0.62 && hours <= 3 && sameSender && sameMethod) {
+    return { isDuplicate: true, reason: `mismo remitente y descripción similar (${Math.round(sim * 100)}%)` };
+  }
+  return { isDuplicate: false, reason: '' };
+}
+
+function visualDuplicateEvidence(a, b) {
+  const aHashes = receiptVisualHashes(a);
+  const bHashes = receiptVisualHashes(b);
+  if (!aHashes.length || !bHashes.length) return { isDuplicate: false, reason: '' };
+
+  for (const ah of aHashes) {
+    for (const bh of bHashes) {
+      if (ah === bh) {
+        return { isDuplicate: true, reason: 'misma imagen/comprobante repetido' };
+      }
+    }
+  }
+  return { isDuplicate: false, reason: '' };
+}
+
+function receiptVisualHashes(msg) {
+  return [...new Set((msg.attachments || [])
+    .map(name => attachmentFiles[name] && attachmentFiles[name].visualHash)
+    .filter(hash => hash && hash.startsWith('v1:')))];
+}
+
+function ocrDuplicateEvidence(a, b) {
+  const aText = normalizedOcrEvidence(a);
+  const bText = normalizedOcrEvidence(b);
+  if (!aText || !bText || aText.length < 80 || bText.length < 80) return { isDuplicate: false, reason: '' };
+
+  const aTx = transactionFingerprint(a);
+  const bTx = transactionFingerprint(b);
+  if (aTx && bTx && aTx !== bTx) return { isDuplicate: false, reason: '' };
+
+  if (aText === bText) return { isDuplicate: true, reason: 'mismo OCR de comprobante' };
+  return { isDuplicate: false, reason: '' };
+}
+
+function normalizedOcrEvidence(msg) {
+  return normalizeText(ocrTextForMessage(msg))
+    .replace(/\b(?:monto|importe|debitado|pagado|total|saldo|disponible|concepto|destino|origen|nombre|cuenta|entidad|moneda)\b/g, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function transactionFingerprint(msg) {
+  const text = normalizeText(getDetectionText(msg));
+  const ids = [];
+  const patterns = [
+    /\b(?:comprobante|operacion|operaciÃ³n|transaccion|transacciÃ³n|referencia|autorizacion|autorizaciÃ³n)\b[^\d]{0,28}(\d{5,})/g,
+    /\b(?:nro|nÂº|numero|nÃºmero)\b[^\d]{0,18}(\d{5,})/g
+  ];
+  for (const rx of patterns) {
+    rx.lastIndex = 0;
+    let match;
+    while ((match = rx.exec(text)) !== null) {
+      const digits = match[1].replace(/\D/g, '');
+      if (digits.length >= 5 && !looksLikeDateNumber(digits, digits, text)) ids.push(digits);
+    }
+  }
+  return ids.length ? [...new Set(ids)].sort().join('|') : '';
+}
+
+function chooseDuplicateKeeper(a, b) {
+  const score = m =>
+    (m.attachments.length * 30) +
+    (m.images.length * 18) +
+    (usefulMessageText(m.text) ? 16 : 0) +
+    (m.paymentMethod !== 'por_revisar' ? 10 : 0) +
+    (m.category && m.category !== 'otros' ? 6 : 0) +
+    m.confidence;
+  if (score(a) !== score(b)) return score(a) > score(b) ? a : b;
+  return a.id < b.id ? a : b;
+}
+
+function receiptDedupeText(msg) {
+  return normalizeForDuplicate(paymentDescription(msg).text || getDetectionText(msg));
+}
+
+function normalizeForDuplicate(text) {
+  return normalizeText(text)
+    .replace(/\b(?:img|vid|aud|ptt|doc|stk)-\d{8}-wa\d+\.[a-z0-9]+\b/g, ' ')
+    .replace(/\b\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?\b/g, ' ')
+    .replace(/\b\d{6,10}\b/g, ' ')
+    .replace(/\b(?:gs|pyg|usd|guaranies|guarani|comprobante|recibo|factura|ticket|pago|pagado|transferencia|transf|deposito|efectivo|tarjeta|cheque|monto|importe|total|debitado|debito|débito)\b/g, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokenSimilarity(a, b) {
+  const aTokens = new Set(String(a || '').split(/\s+/).filter(t => t.length > 2 && !/^\d+$/.test(t)));
+  const bTokens = new Set(String(b || '').split(/\s+/).filter(t => t.length > 2 && !/^\d+$/.test(t)));
+  if (!aTokens.size || !bTokens.size) return 0;
+  let shared = 0;
+  for (const token of aTokens) if (bTokens.has(token)) shared++;
+  return shared / Math.max(aTokens.size, bTokens.size);
+}
+
+function isLikelyAmount(value, raw, context) {
+  const rawText = prepareDetectionText(raw);
+  const compact = rawText.replace(/\D/g, '');
+  const norm = normalizeText(context || rawText);
+
+  if (!compact) return false;
+  if (hasNonAmountLabelForRaw(rawText, norm)) return false;
+  if (looksLikeCoordinateOrUrlNumber(rawText, norm)) return false;
+  if (looksLikeDateNumber(compact, rawText, norm)) return false;
+  if (looksLikePhoneOrAccount(compact, norm)) return false;
+  if (looksLikeDocumentIdentifier(compact, norm)) return false;
+  if (/\b(saldo anterior|saldo actual|saldo disponible|saldo|balance)\b/.test(norm) && !/\b(pagar|pagado|pago|debitado|debito|débito|importe|monto)\b/.test(norm)) return false;
+
+  return value >= 1000;
+}
+
+function looksLikeCoordinateOrUrlNumber(raw, context) {
+  const n = normalizeText(`${context} ${raw}`);
+  if (/\b(ubicacion|ubicación|maps\.google|google\.com\/maps|maps\.app\.goo|geo:|latitud|longitud)\b/.test(n)) return true;
+  if (/https?:\/\//i.test(context) && /[?&](q|ll)=?-?\d/i.test(context)) return true;
+  if (/[+-]?\d{1,2}\.\d{4,}\s*,\s*[+-]?\d{1,3}\.\d{4,}/.test(context)) return true;
+  return false;
+}
+
+function hasNonAmountLabelForRaw(raw, context) {
+  const escaped = escapeRegex(normalizeText(raw));
+  if (!escaped) return false;
+  const badBefore = new RegExp(`\\b(saldo anterior|saldo actual|saldo disponible|balance|operacion|operación|autorizacion|autorización|transaccion|transacción|referencia|comprobante|codigo|código|fecha|hora|ruc|timbrado|cuenta|cta|telefono|tel|celular)\\b[^\\n]{0,28}${escaped}`);
+  return badBefore.test(context);
+}
+
+function looksLikeDateNumber(digits, raw, context) {
+  if (/\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/.test(raw)) return true;
+  if (/\b\d{1,2}[.-]\d{1,2}[.-]\d{2,4}\b/.test(raw)) return true;
+  if (/^\d{4}$/.test(digits)) {
+    const year = parseInt(digits, 10);
+    if (year >= 1990 && year <= 2099 && !hasPositiveAmountContext(context) && detectCategory(context) === 'otros') return true;
+  }
+  if (/^\d{8}$/.test(digits)) {
+    const yyyy = parseInt(digits.slice(0, 4), 10);
+    const mm = parseInt(digits.slice(4, 6), 10);
+    const dd = parseInt(digits.slice(6, 8), 10);
+    if (yyyy >= 1990 && yyyy <= 2099 && mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) return true;
+
+    const dd2 = parseInt(digits.slice(0, 2), 10);
+    const mm2 = parseInt(digits.slice(2, 4), 10);
+    const yyyy2 = parseInt(digits.slice(4, 8), 10);
+    if (yyyy2 >= 1990 && yyyy2 <= 2099 && mm2 >= 1 && mm2 <= 12 && dd2 >= 1 && dd2 <= 31) return true;
+  }
+  if (/\b(fecha|dia|desde|hasta|vence|vencimiento|emision|emitido)\b/.test(context) && /^\d{6,8}$/.test(digits)) return true;
+  return false;
+}
+
+function looksLikePhoneOrAccount(digits, context) {
+  if (/^(09|5959)\d{7,9}$/.test(digits)) return true;
+  if (/\b(telefono|tel|cel|celular|whatsapp|ruc|ci|cedula|cta|cuenta|nro cuenta|alias|comprobante nro|operacion|operación|transaccion|transacción|autorizacion|autorización)\b/.test(context) && digits.length >= 6) {
+    return !/\b(total|monto|importe|pagado|pago|debitado|debito|débito)\b/.test(context);
+  }
+  return false;
+}
+
+function looksLikeDocumentIdentifier(digits, context) {
+  if (/\b(factura|recibo|comprobante|ticket|boleta)\b/.test(context) && /\.(pdf|jpg|jpeg|png|webp)\b/.test(context) && digits.length >= 4 && !/\b(total|monto|importe|saldo|pagado|pago|debitado|debito|débito)\b/.test(context)) return true;
+  if (/\b(ruc|timbrado|factura nro|factura n|recibo nro|recibo n|comprobante nro|comprobante n|comprobante|operacion|operación|transaccion|transacción|referencia|autorizacion|autorización|codigo|código|orden nro|orden n|presupuesto nro|presupuesto n)\b/.test(context) && digits.length >= 5 && !/\b(total|monto|importe|saldo|pagado|pago|debitado|debito|débito)\b/.test(context)) return true;
+  if (/\b(001-001|002-001|001001|nro|nº|numero|número)\b/.test(context) && digits.length >= 7 && !/\b(total|monto|importe|saldo|pagado|pago|debitado|debito|débito)\b/.test(context)) return true;
+  return false;
+}
+
+function amountContextScore(context, value, currency) {
+  const n = normalizeText(context);
+  let score = 0;
+
+  if (hasPositiveAmountContext(n)) score += 70;
+  if (/\b(transferencia|deposito|efectivo|tarjeta|cheque|qr|billetera|recibo|factura|comprobante|ticket)\b/.test(n)) score += 24;
+  if (detectCategory(n) !== 'otros') score += 12;
+  if (/\b(saldo anterior|saldo actual|saldo disponible|balance|vuelto|cambio|cuenta|ruc|timbrado|factura nro|comprobante nro|operacion|operación|referencia|codigo|código|autorizacion|autorización)\b/.test(n)) score -= 80;
+  if (/\b(cuota|cuotas|cantidad|unid|unidad|unidades|kg|mts|metros|m2|m3|nro|numero|número)\b/.test(n) && value < 100000) score -= 28;
+  if (currency === 'PYG' && value < 1000) score -= 100;
+  if (String(value).length === 8 && looksLikeDateNumber(String(value), String(value), n)) score -= 120;
+
+  return score;
+}
+
+function hasPositiveAmountContext(text) {
+  const n = normalizeText(text);
+  return /\b(debitado|debito|débito|pagado|pago realizado|importe debitado|monto debitado|monto pagado|total pagado|total a pagar|importe total|total|monto|importe|pago|pague|pagué|costo|precio|compra|vale|abono|anticipo|adelanto|entrega|cancelado|cobrado|efectivo|transferencia|deposito|depósito)\b/.test(n);
+}
+
+function parseAmount(str) {
+  if (!str) return 0;
+  const raw = prepareDetectionText(str).trim();
+  if (/^\+/.test(raw) || /^0\d{8,}$/.test(raw.replace(/\D/g, ''))) return 0;
+  if (/\d{1,2}\/\d{1,2}/.test(raw) || /WA\d/i.test(raw)) return 0;
+
+  let s = raw
+    .replace(/\s+/g, '')
+    .replace(/^(?:₲|gs\.?|g\.?|pyg|guaran[ií](?:es)?|usd|us\$|\$|d[oó]lares?)[:.\-–—]?/i, '')
+    .replace(/(?:₲|gs\.?|g\.?|pyg|guaran[ií](?:es)?|usd|us\$|\$|d[oó]lares?)$/i, '')
+    .replace(/\.-$/, '')
+    .replace(/[^\d.,]/g, '');
+
+  if (!s || !/\d/.test(s)) return 0;
+
+  const dotCount = (s.match(/\./g) || []).length;
+  const commaCount = (s.match(/,/g) || []).length;
+  const lastDot = s.lastIndexOf('.');
+  const lastComma = s.lastIndexOf(',');
+
+  if (dotCount && commaCount) {
+    const decimalPos = Math.max(lastDot, lastComma);
+    const decimals = s.length - decimalPos - 1;
+    if (decimals > 0 && decimals <= 2) s = s.slice(0, decimalPos);
+    s = s.replace(/[.,]/g, '');
+  } else if (commaCount) {
+    const decimals = s.length - lastComma - 1;
+    if (commaCount === 1 && decimals > 0 && decimals <= 2 && s.length > 4) s = s.slice(0, lastComma);
+    s = s.replace(/,/g, '');
+  } else if (dotCount) {
+    const decimals = s.length - lastDot - 1;
+    if (dotCount === 1 && decimals > 0 && decimals <= 2 && s.length > 4) s = s.slice(0, lastDot);
+    s = s.replace(/\./g, '');
+  }
+
+  const value = parseInt(s, 10);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function detectCurrency(text) {
+  return /\b(?:usd|us\$|d[oó]lares?)\b|\$/.test(prepareDetectionText(text).toLowerCase()) ? 'USD' : 'PYG';
+}
+
+function scoreReceipt(msg, detectionText) {
+  const reasons = [];
+  let score = 0;
+  const text = detectionText || msg.text || '';
+  const norm = normalizeText(text);
+  const attachmentCount = msg.attachments.length;
+  const docCount = msg.attachments.filter(name => attachmentFiles[name] && attachmentFiles[name].type !== 'image').length;
+
+  if (msg.amount) {
+    score += 42;
+    reasons.push('monto');
+  }
+  if (hasReceiptKeyword(text)) {
+    score += 30;
+    reasons.push('palabra clave');
+  }
+  if (msg.paymentMethod !== 'por_revisar') {
+    score += 18;
+    reasons.push(labelFor(METHOD_OPTIONS, msg.paymentMethod).toLowerCase());
+  }
+  if (attachmentCount) {
+    score += docCount ? 34 : 26;
+    reasons.push(docCount ? 'documento adjunto' : 'imagen adjunta');
+  }
+  if (/factura|recibo|comprobante|ticket|boleta|ruc|timbrado/.test(norm)) {
+    score += 15;
+    reasons.push('documento fiscal');
+  }
+  if (msg.category && msg.category !== 'otros') score += 6;
+  if (msg.isMedia && /omitido|omitted|archivo adjunto/.test(norm)) score += 10;
+
+  let isReceipt = score >= 30 || !!msg.amount || attachmentCount > 0;
+  if (!msg.amount && attachmentCount && !usefulMessageText(msg.text) && !usefulMessageText(msg.contextText)) {
+    isReceipt = false;
+    reasons.push('adjunto sin descripción ni monto');
+  }
+  if (msg.linkedTo !== null && isBareMediaMessage(msg)) {
+    isReceipt = false;
+    reasons.push('foto unida a otro mensaje');
+  }
+  return { isReceipt, confidence: Math.min(99, score), reasons: [...new Set(reasons)] };
+}
+
+function hasReceiptKeyword(text) {
+  const n = normalizeText(text);
+  return /\b(comprobante|recibo|factura|ticket|boleta|pago|pagado|pagamos|pague|transferencia|transf|deposito|depositado|efectivo|cheque|tarjeta|debito|credito|qr|billetera|giro|tigo money|personal pay|ueno|bancard|pos|vale|anticipo|adelanto|abono|cancelado|rendicion|liquidacion|orden de pago|ruc|timbrado|saldo|sena|senha|seña|combus|combustible|alquiler|flete|jornal|jornaleros)\b/.test(n);
+}
+
+function detectPaymentMethod(text) {
+  const n = normalizeText(text);
+  if (/\bcheque\b/.test(n)) return 'cheque';
+  if (/\b(tarjeta|debito|credito|pos|bancard)\b/.test(n)) return 'tarjeta';
+  if (/\b(qr|billetera|tigo money|personal pay|ueno|zimple|giros?)\b/.test(n)) return 'qr_billetera';
+  if (/\b(transferencia|transf|transferido|cuenta|alias|banco|itau|continental|familiar|vision|sudameris|basa|gnb)\b/.test(n)) return 'transferencia';
+  if (/\b(deposito|depositado|boleta de deposito)\b/.test(n)) return 'deposito';
+  if (/\b(efectivo|cash|contado)\b/.test(n)) return 'efectivo';
+  return 'por_revisar';
+}
+
+function detectReceiptType(msg, detectionText) {
+  const n = normalizeText(detectionText || msg.text);
+  if (/\bfactura|timbrado|ruc\b/.test(n)) return 'factura';
+  if (/\brecibo\b/.test(n)) return 'recibo';
+  if (/\bticket|boleta\b/.test(n)) return 'ticket';
+  if (/\bcomprobante\b/.test(n)) return 'comprobante';
+  if (msg.paymentMethod !== 'por_revisar') return msg.paymentMethod;
+  if (msg.amount) return 'gasto_detectado';
+  if (msg.attachments.length) return 'adjunto_posible';
+  return '';
+}
+
+function detectCategory(text) {
+  const n = normalizeText(text);
+  const rules = [
+    ['mano_obra', /\b(jornal|jornales|mano de obra|albanil|albañil|ayudante|pintor|plomero|electricista|carpintero|herrero|salario|sueldo|cuadrilla|contratista)\b/],
+    ['combustible', /\b(combustible|nafta|diesel|gasoil|estacion|petropar|copetrol|shell|emblema)\b/],
+    ['transporte', /\b(flete|transporte|camion|camión|envio|envío|delivery|acarreo|mudanza|taxi|bolt|uber|minipala)\b/],
+    ['herramientas', /\b(herramienta|taladro|amoladora|disco|mecha|martillo|martillete|cincel|cinta metrica|cinta métrica|nivel|atornillador)\b/],
+    ['maquinaria', /\b(maquina|máquina|retro|bobcat|hormigonera|andamio|grua|grúa|alquiler de equipo|compactador|compactadora|compresor)\b/],
+    ['comida', /\b(comida|almuerzo|desayuno|cena|asadito|gaseosa|agua|super|supermercado|bebida|viatico|viático)\b/],
+    ['servicios', /\b(servicio|honorario|internet|telefono|teléfono|luz|ande|agua|essap|mantenimiento|reparacion|reparación)\b/],
+    ['impuestos', /\b(impuesto|tasa|municipalidad|iva|retencion|retención|patente|permiso|poliza|póliza|ips|interdiccion|interdicción|quiebras)\b/],
+    ['alquiler', /\b(alquiler|renta|arrendamiento|depto|departamento)\b/],
+    ['materiales', /\b(cemento|arena|piedra|varilla|hierro|ladrillo|bloque|cal|pintura|ceramica|cerámica|porcelanato|madera|chapa|tornillo|clavo|cable|caño|cano|tubo|silicona|yeso|masilla|vidrio|abertura|ventana|puerta|material|materiales|asfalto|emulsion|emulsión|cordon|cordón|correa|escobillon|escobillón|aerosol|bidon|bidón)\b/]
+  ];
+  const found = rules.find(([, rx]) => rx.test(n));
+  return found ? found[0] : 'otros';
+}
+
+function prepareDetectionText(text) {
+  return String(text || '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+    .replace(/[\u00A0\u1680\u180E\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
+    .replace(/[‐‑‒–—−]/g, '-')
+    .replace(/[^\S\n]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function normalizeText(text) {
+  return prepareDetectionText(text).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+// ─── Rendering ───
+function renderAll() {
+  updateStats();
+  populateSenderFilter();
+  renderGastos();
+  renderTodos();
+  renderImages();
+}
+
+function updateStats() {
+  const receipts = allMessages.filter(m => m.isReceipt);
+  const selected = receipts.filter(m => m.included);
+  const pending = receipts.filter(m => !m.amount && !m.included).length;
+  const totals = totalsByCurrency(selected);
+
+  document.getElementById('statTotal').textContent = allMessages.length.toLocaleString('es-PY');
+  document.getElementById('statMoney').textContent = receipts.length.toLocaleString('es-PY');
+  document.getElementById('statImages').textContent = pending.toLocaleString('es-PY');
+  document.getElementById('statSum').textContent = formatTotals(totals);
+}
+
+function populateSenderFilter() {
+  const sel = document.getElementById('filterSender');
+  const current = sel.value;
+  const senders = [...new Set(allMessages.map(m => m.sender).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+  sel.innerHTML = '<option value="">Todos los remitentes</option>';
+  senders.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = s;
+    sel.appendChild(opt);
+  });
+  if (senders.includes(current)) sel.value = current;
+}
+
+function getFiltered(mode = 'receipts') {
+  const search = normalizeText(document.getElementById('searchBox').value);
+  const sender = document.getElementById('filterSender').value;
+  const cat = document.getElementById('filterCategory').value;
+  const method = document.getElementById('filterMethod').value;
+  const status = document.getElementById('filterStatus').value;
+  const sortBy = document.getElementById('sortBy').value;
+
+  const rows = allMessages.filter(m => {
+    if (mode === 'receipts' && !m.isReceipt) return false;
+    if (mode === 'images' && !m.images.length) return false;
+    if (!status && m.duplicateOf !== null) return false;
+    if (search) {
+      const haystack = normalizeText(`${m.date} ${m.time} ${m.sender} ${m.text} ${ocrTextForMessage(m)} ${m.amount || ''} ${m.attachments.join(' ')}`);
+      if (!haystack.includes(search)) return false;
+    }
+    if (sender && m.sender !== sender) return false;
+    if (cat && m.category !== cat) return false;
+    if (method && m.paymentMethod !== method) return false;
+    if (status === 'included' && !m.included) return false;
+    if (status === 'excluded' && m.included) return false;
+    if (status === 'duplicate' && m.duplicateOf === null) return false;
+    if (status === 'no_amount' && m.amount) return false;
+    if (status === 'review' && (m.amount && m.confidence >= 55)) return false;
+    return true;
+  });
+
+  return rows.sort((a, b) => compareMessages(a, b, sortBy));
+}
+
+function compareMessages(a, b, sortBy) {
+  if (sortBy === 'date_asc') return a.timestamp - b.timestamp || a.id - b.id;
+  if (sortBy === 'amount_desc') return (b.amount || 0) - (a.amount || 0) || b.timestamp - a.timestamp;
+  if (sortBy === 'amount_asc') return (a.amount || 0) - (b.amount || 0) || b.timestamp - a.timestamp;
+  if (sortBy === 'confidence_desc') return b.confidence - a.confidence || b.timestamp - a.timestamp;
+  if (sortBy === 'sender_asc') return a.sender.localeCompare(b.sender, 'es') || b.timestamp - a.timestamp;
+  if (sortBy === 'category_asc') return labelFor(CATEGORY_OPTIONS, a.category).localeCompare(labelFor(CATEGORY_OPTIONS, b.category), 'es') || b.timestamp - a.timestamp;
+  return b.timestamp - a.timestamp || b.id - a.id;
+}
+
+function renderGastos() {
+  const list = document.getElementById('gastosList');
+  const msgs = getFiltered('receipts');
+  const duplicates = allMessages.filter(m => m.duplicateOf !== null).length;
+  document.getElementById('resultInfo').textContent = `${msgs.length.toLocaleString('es-PY')} comprobantes visibles. ${getSelectedReceipts().length.toLocaleString('es-PY')} seleccionados para Excel. ${duplicates.toLocaleString('es-PY')} duplicados excluidos.`;
+  list.innerHTML = msgs.length === 0
+    ? '<div class="loading-text">No se encontraron comprobantes con esos filtros.</div>'
+    : msgs.map(m => msgRow(m, true)).join('');
+}
+
+function renderTodos() {
+  const list = document.getElementById('todosList');
+  const msgs = getFiltered('all');
+  list.innerHTML = msgs.slice(0, 500).map(m => msgRow(m, true)).join('');
+  if (msgs.length > 500) {
+    list.innerHTML += `<div class="loading-text">Mostrando 500 de ${msgs.length.toLocaleString('es-PY')} mensajes. Usá el buscador o filtros para acotar.</div>`;
+  }
+}
+
+function msgRow(m, showControls) {
+  const rowClasses = [
+    'msg-row',
+    showControls ? (m.included ? 'included' : 'excluded') : '',
+    m.isReceipt && (!m.amount || m.confidence < 55) ? 'review' : '',
+    m.duplicateOf !== null ? 'duplicate' : ''
+  ].filter(Boolean).join(' ');
+
+  const attachments = m.attachments.map(name => attachmentChip(name)).join('');
+  const imgThumbs = m.images.slice(0, 4).map(img =>
+    `<button type="button" class="thumb-btn" data-file="${escAttr(img)}" onclick="openAttachmentFromElement(this)" title="Abrir ${escAttr(img)}"><img class="img-thumb" src="${imageBlobs[img]}" alt="${escAttr(img)}"></button>`
+  ).join('');
+
+  const amountValue = m.amount ? formatNum(m.amount) : '';
+  const amountDisplay = showControls
+    ? `<input class="amount-input" type="text" value="${escAttr(amountValue)}" placeholder="monto" onchange="updateAmount(${m.id}, this.value)">`
+    : (m.amount ? `<span class="msg-amount">${formatMoney(m.amount, m.currency)}</span>` : '');
+
+  const categorySelect = showControls
+    ? `<select class="category-select" onchange="updateCategory(${m.id}, this.value)">${categoryOptionsHtml(m.category)}</select>`
+    : '';
+
+  const methodSelect = showControls
+    ? `<select class="category-select" onchange="updateMethod(${m.id}, this.value)">${methodOptionsHtml(m.paymentMethod)}</select>`
+    : '';
+
+  const include = showControls
+    ? `<input class="include-check" type="checkbox" ${m.included ? 'checked' : ''} onchange="setIncluded(${m.id}, this.checked)" title="${m.included ? 'Incluido en Excel' : 'Excluido de Excel'}">`
+    : '';
+
+  const chips = [];
+  if (m.amount) chips.push(`<span class="chip chip-money">${formatMoney(m.amount, m.currency)}</span>`);
+  if (m.duplicateOf !== null) chips.push(`<span class="chip chip-duplicate">Duplicado</span>`);
+  if (!m.amount && m.isReceipt) chips.push('<span class="chip chip-warning">Sin monto</span>');
+  if (m.paymentMethod !== 'por_revisar') chips.push(`<span class="chip chip-method">${escHtml(labelFor(METHOD_OPTIONS, m.paymentMethod))}</span>`);
+  if (m.receiptType) chips.push(`<span class="chip chip-doc">${escHtml(labelReceiptType(m.receiptType))}</span>`);
+  if (m.images.length) chips.push('<span class="chip chip-image">Imagen</span>');
+  if (m.attachments.some(name => attachmentFiles[name] && attachmentFiles[name].type !== 'image')) chips.push('<span class="chip chip-doc">Documento</span>');
+
+  const desc = paymentDescription(m);
+  const cleanDesc = expenseDescription(m);
+  const text = cleanDesc.substring(0, 220);
+  const ellipsis = cleanDesc.length > 220 ? '...' : '';
+  const reasonTitle = [m.duplicateReason, ...m.reasons].filter(Boolean).join(', ') || 'sin señales claras';
+
+  return `<div class="${rowClasses}">
+    <div>${include}</div>
+    <div class="msg-date">${escHtml(m.date)}<br>${escHtml(m.time)}<br><span class="confidence" title="${escAttr(reasonTitle)}">${m.confidence}%</span></div>
+    <div class="msg-sender">${escHtml(m.sender)}</div>
+    <div>
+      ${desc.context ? '<div class="context-note">Descripción vinculada a la foto</div>' : ''}
+      <div class="payment-description">${escHtml(text)}${ellipsis}</div>
+      <div style="margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        ${chips.join('')}${imgThumbs}${attachments}
+      </div>
+    </div>
+    <div class="row-editor">
+      ${amountDisplay}
+      ${categorySelect}
+      ${methodSelect}
+    </div>
+  </div>`;
+}
+
+function attachmentChip(name) {
+  if (!attachmentFiles[name] || attachmentFiles[name].type === 'image') return '';
+  return `<button type="button" class="file-chip" data-file="${escAttr(name)}" onclick="openAttachmentFromElement(this)" title="${escAttr(name)}">${escHtml(name)}</button>`;
+}
+
+function paymentDescription(msg) {
+  const own = usefulMessageText(msg.text);
+  const ocr = ocrSummaryForMessage(msg);
+  if (own) return { text: [own, ocr].filter(Boolean).join('\n'), context: false };
+  if (msg.contextText) return { text: [usefulMessageText(msg.contextText) || msg.contextText, ocr].filter(Boolean).join('\n'), context: true };
+  if (msg.linkedTo !== null && allMessages[msg.linkedTo]) {
+    const linked = usefulMessageText(allMessages[msg.linkedTo].text) || allMessages[msg.linkedTo].text;
+    return { text: [linked, ocr].filter(Boolean).join('\n'), context: true };
+  }
+  if (ocr) return { text: ocr, context: false };
+  if (msg.attachments.length) return { text: '(adjunto sin descripción ni monto detectado)', context: false };
+  return { text: '(mensaje sin descripción útil)', context: false };
+}
+
+function ocrSummaryForMessage(msg) {
+  const text = ocrTextForMessage(msg);
+  if (!text) return '';
+  const important = text
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(line => /\d|monto|importe|debitado|pagado|total|comprobante|operacion|operación|referencia/i.test(line))
+    .slice(0, 8)
+    .join(' | ');
+  return `OCR foto: ${oneLine(important || text, 360)}`;
+}
+
+function expenseDescription(msg) {
+  const own = usefulMessageText(msg.text);
+  const linked = msg.linkedTo !== null && allMessages[msg.linkedTo]
+    ? usefulMessageText(allMessages[msg.linkedTo].text)
+    : '';
+  const context = usefulMessageText(msg.contextText);
+  const base = own || context || linked || descriptionFromOcr(msg) || 'Comprobante sin descripción';
+  return cleanExpenseDescription(base, msg.amount);
+}
+
+function descriptionFromOcr(msg) {
+  const text = ocrTextForMessage(msg);
+  if (!text) return '';
+  const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!/\b(concepto|descripcion|descripci[oó]n|detalle)\b/i.test(line)) continue;
+    const sameLine = line.replace(/\b(concepto|descripcion|descripci[oó]n|detalle)\b\s*[:.-]?\s*/i, '').trim();
+    if (sameLine && !isWeakOcrDescription(sameLine)) return sameLine;
+    const nextLine = lines[i + 1] || '';
+    if (nextLine && !isWeakOcrDescription(nextLine)) return nextLine;
+  }
+  return '';
+}
+
+function isWeakOcrDescription(text) {
+  const n = normalizeText(text);
+  return !n || /^(pago|venta|compra|transferencia|detalle|detalles|origen|destino|monto|importe|total)$/i.test(n) || /\d{5,}/.test(n);
+}
+
+function cleanExpenseDescription(text, amount) {
+  let desc = usefulMessageText(text) || prepareDetectionText(text);
+  desc = desc
+    .replace(/\bOCR foto:.*$/i, ' ')
+    .replace(/\b(?:monto|importe|total)\s*(?:debitado|pagado|abonado|transferido|a pagar)?\s*[:.-]?\s*[\d.,\s]+(?:gs\.?|pyg|₲)?/gi, ' ')
+    .replace(/\b(?:saldo anterior|saldo actual|saldo disponible|saldo|balance)\b.*$/gi, ' ')
+    .replace(/\b(?:comprobante|operaci[oó]n|transacci[oó]n|referencia|autorizaci[oó]n|codigo|c[oó]digo)\b\s*[:.-]?\s*\d{5,}/gi, ' ');
+
+  if (amount) desc = removeAmountValue(desc, amount);
+
+  desc = desc
+    .replace(/^\s*(?:pago|pagado|pagamos|pagu[eé])\s+(?:de\s+)?/i, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([.,;:])/g, '$1')
+    .replace(/^[,.;:\-–—\s]+|[,.;:\-–—\s]+$/g, '')
+    .trim();
+
+  return desc || 'Comprobante sin descripción';
+}
+
+function removeAmountValue(text, amount) {
+  const digits = String(amount || '').replace(/\D/g, '');
+  if (!digits) return text;
+  const groupedDot = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const groupedComma = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const groupedSpace = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const variants = [digits, groupedDot, groupedComma, groupedSpace]
+    .filter(Boolean)
+    .map(escapeRegex)
+    .join('|');
+  return text.replace(new RegExp(`\\b(?:${variants})(?:\\s*(?:gs\\.?|pyg|₲))?\\b`, 'gi'), ' ');
+}
+
+function categoryOptionsHtml(selected) {
+  return `<option value="" ${!selected ? 'selected' : ''}>Sin categoría</option>` +
+    CATEGORY_OPTIONS.map(([value, label]) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`).join('');
+}
+
+function methodOptionsHtml(selected) {
+  return METHOD_OPTIONS.map(([value, label]) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`).join('');
+}
+
+function renderImages() {
+  const grid = document.getElementById('imageGrid');
+  const imgs = Object.keys(imageBlobs);
+  grid.innerHTML = imgs.length ? imgs.map(name => {
+    const msg = findMessageByAttachment(name);
+    const amount = msg && msg.amount ? `<span style="color:var(--green);font-family:'JetBrains Mono',monospace;">${formatMoney(msg.amount, msg.currency)}</span>` : '<span style="color:var(--yellow);">sin monto</span>';
+    const desc = msg ? expenseDescription(msg) : 'Sin mensaje vinculado';
+    return `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;" data-file="${escAttr(name)}" onclick="openAttachmentFromElement(this)">
+        <img src="${imageBlobs[name]}" style="width:100%;height:140px;object-fit:cover;">
+        <div style="padding:8px;font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;word-break:break-all;">${escHtml(name)}</div>
+        <div style="padding:0 8px 6px;font-size:12px;">${amount}</div>
+        <div style="padding:0 8px 10px;font-size:12px;color:var(--text);line-height:1.35;">${escHtml(oneLine(desc, 110))}</div>
+      </div>
+    `;
+  }).join('') : '<div class="loading-text">No se encontraron imágenes en el ZIP.</div>';
+}
+
+// ─── Interactions ───
+function updateAmount(id, val) {
+  const msg = allMessages[id];
+  const value = parseAmount(val);
+  msg.amount = value || null;
+  if (value) {
+    msg.currency = detectCurrency(val);
+    msg.isReceipt = true;
+    msg.included = true;
+    msg.confidence = Math.max(msg.confidence, 80);
+    if (!msg.reasons.includes('monto manual')) msg.reasons.push('monto manual');
+  }
+  renderAll();
+}
+
+function updateCategory(id, val) {
+  allMessages[id].category = val || 'otros';
+  renderAll();
+}
+
+function updateMethod(id, val) {
+  allMessages[id].paymentMethod = val || 'por_revisar';
+  if (val && val !== 'por_revisar') {
+    allMessages[id].isReceipt = true;
+    allMessages[id].included = true;
+  }
+  renderAll();
+}
+
+function setIncluded(id, value) {
+  const msg = allMessages[id];
+  msg.included = value;
+  if (value) {
+    msg.isReceipt = true;
+    msg.duplicateOf = null;
+    msg.duplicateReason = '';
+    msg.reasons = msg.reasons.filter(r => r !== 'duplicado probable');
+    msg.confidence = Math.max(msg.confidence, 55);
+    if (!msg.receiptType) msg.receiptType = 'manual';
+  }
+  renderAll();
+}
+
+function bulkSetIncluded(value) {
+  const mode = activeTab === 'todos' ? 'all' : 'receipts';
+  const visible = getFiltered(mode);
+  visible.forEach(m => {
+    if (value && (m.duplicateOf !== null || !m.amount)) return;
+    m.included = value;
+    if (value) {
+      m.isReceipt = true;
+      m.confidence = Math.max(m.confidence, 55);
+      if (!m.receiptType) m.receiptType = 'manual';
+    }
+  });
+  renderAll();
+}
+
+function openAttachmentFromElement(el) {
+  if (!el || !el.dataset) return;
+  openAttachment(el.dataset.file);
+}
+
+function openAttachment(name) {
+  if (imageBlobs[name]) {
+    openModal(name);
+    return;
+  }
+  const url = attachmentBlobs[name];
+  if (url) window.open(url, '_blank');
+}
+
+function openModal(name) {
+  const msg = findMessageByAttachment(name);
+  document.getElementById('modalImg').src = imageBlobs[name];
+  document.getElementById('modalTitle').textContent = name;
+  document.getElementById('modalDesc').textContent = msg
+    ? `${msg.amount ? formatMoney(msg.amount, msg.currency) + ' | ' : ''}${expenseDescription(msg)}${ocrSummaryForMessage(msg) ? '\n\n' + ocrSummaryForMessage(msg) : ''}`
+    : 'Sin mensaje vinculado a esta imagen.';
+  document.getElementById('imgModal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('imgModal').classList.remove('active');
+}
+
+document.getElementById('imgModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+['searchBox', 'filterSender', 'filterCategory', 'filterMethod', 'filterStatus', 'sortBy'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(id === 'searchBox' ? 'input' : 'change', renderAll);
+});
+
+// ─── Summary and export ───
+function generateSummary() {
+  const receipts = getSelectedReceipts();
+  const withAmount = receipts.filter(m => m.amount);
+  const noAmount = allMessages.filter(m => m.isReceipt && !m.amount && !m.included);
+  const byCategory = groupTotals(receipts, m => m.category || 'otros');
+  const byMethod = groupTotals(receipts, m => m.paymentMethod || 'por_revisar');
+  const totals = totalsByCurrency(receipts);
+
+  let txt = `=== RESUMEN DE COMPROBANTES DE OBRA ===\n`;
+  txt += `Procesado el ${new Date().toLocaleDateString('es-PY')}\n`;
+  txt += `Mensajes: ${allMessages.length} | Comprobantes detectados: ${allMessages.filter(m => m.isReceipt).length} | Seleccionados con monto: ${receipts.length}\n`;
+  txt += `Con monto: ${withAmount.length} | Pendientes sin monto: ${noAmount.length} | Duplicados excluidos: ${allMessages.filter(m => m.duplicateOf !== null).length} | Adjuntos: ${Object.keys(attachmentFiles).length}\n`;
+  txt += `TOTAL SELECCIONADO: ${formatTotals(totals)}\n\n`;
+
+  txt += `--- POR CATEGORÍA ---\n`;
+  for (const [cat, data] of Object.entries(byCategory).sort((a, b) => (b[1].PYG + b[1].USD) - (a[1].PYG + a[1].USD))) {
+    txt += `${labelFor(CATEGORY_OPTIONS, cat)} | ${data.count} items | ${formatTotals(data)}\n`;
+  }
+
+  txt += `\n--- POR MÉTODO DE PAGO ---\n`;
+  for (const [method, data] of Object.entries(byMethod).sort((a, b) => b[1].count - a[1].count)) {
+    txt += `${labelFor(METHOD_OPTIONS, method)} | ${data.count} items | ${formatTotals(data)}\n`;
+  }
+
+  txt += `\n--- PENDIENTES SIN MONTO ---\n`;
+  noAmount.slice(0, 120).forEach(m => {
+    txt += `${m.date} ${m.time} | ${m.sender} | ${labelFor(METHOD_OPTIONS, m.paymentMethod)} | ${m.attachments.join(', ') || '-'} | ${oneLine(paymentDescription(m).text, 120)}\n`;
+  });
+  if (noAmount.length > 120) txt += `... ${noAmount.length - 120} pendientes más\n`;
+
+  txt += `\n--- LISTADO SELECCIONADO ---\n`;
+  txt += `Fecha | Descripción del gasto | Monto\n`;
+  receipts.slice().sort((a, b) => a.timestamp - b.timestamp).forEach(m => {
+    if (!m.amount || m.duplicateOf !== null) return;
+    txt += `${exportDate(m)} | ${oneLine(expenseDescription(m), 120)} | ${m.amount}\n`;
+  });
+
+  txt += `\n--- NOTAS ---\n`;
+  txt += `- Los comprobantes sin monto quedan fuera del Excel hasta que les cargues un monto o los selecciones manualmente.\n`;
+  txt += `- Revisá especialmente los ítems con baja confianza antes de exportar el Excel final.\n`;
+
+  document.getElementById('summaryText').textContent = txt;
+  switchTab('resumen');
+}
+
+function copySummary(btn) {
+  const txt = document.getElementById('summaryText').textContent;
+  navigator.clipboard.writeText(txt).then(() => {
+    const target = btn || document.querySelector('[onclick^="copySummary"]');
+    if (!target) return;
+    const old = target.textContent;
+    target.textContent = '✅ Copiado';
+    setTimeout(() => target.textContent = old, 1800);
+  });
+}
+
+function exportCSV() {
+  const rows = buildExportRows();
+  const csv = rows.map(row => row.map(csvCell).join(',')).join('\n');
+  downloadBlob(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }), `comprobantes_obra_${todayKey()}.csv`);
+}
+
+async function exportExcel() {
+  if (typeof JSZip === 'undefined') {
+    alert('No se cargó la librería ZIP necesaria para crear el Excel. Revisá tu conexión y recargá la app.');
+    return;
+  }
+  const detailRows = buildExportRows();
+  const zip = new JSZip();
+
+  zip.file('[Content_Types].xml', contentTypesXml());
+  zip.folder('_rels').file('.rels', rootRelsXml());
+  zip.folder('xl').file('workbook.xml', workbookXml());
+  zip.folder('xl').folder('_rels').file('workbook.xml.rels', workbookRelsXml());
+  zip.folder('xl').file('styles.xml', stylesXml());
+  zip.folder('xl').folder('worksheets').file('sheet1.xml', worksheetXml(detailRows, true));
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  downloadBlob(blob, `comprobantes_obra_${todayKey()}.xlsx`);
+}
+
+function buildExportRows() {
+  const header = ['Fecha', 'Descripción del gasto', 'Monto'];
+  const rows = getSelectedReceipts()
+    .filter(m => m.amount && m.duplicateOf === null)
+    .slice()
+    .sort((a, b) => a.timestamp - b.timestamp || a.id - b.id)
+    .map(m => [
+      exportDate(m),
+      expenseDescription(m),
+      m.amount
+    ]);
+  return [header, ...rows];
+}
+
+function buildSummaryRows() {
+  const selected = getSelectedReceipts();
+  const totals = totalsByCurrency(selected);
+  const byCategory = groupTotals(selected, m => m.category || 'otros');
+  const byMethod = groupTotals(selected, m => m.paymentMethod || 'por_revisar');
+  const rows = [
+    ['Resumen de comprobantes'],
+    ['Generado', new Date().toLocaleString('es-PY')],
+    ['Mensajes totales', allMessages.length],
+    ['Comprobantes detectados', allMessages.filter(m => m.isReceipt).length],
+    ['Seleccionados para Excel', selected.length],
+    ['Duplicados excluidos', allMessages.filter(m => m.duplicateOf !== null).length],
+    ['Pendientes sin monto', allMessages.filter(m => m.isReceipt && !m.amount && !m.included).length],
+    ['Total PYG', totals.PYG],
+    ['Total USD', totals.USD],
+    [],
+    ['Por categoría', 'Items', 'Total PYG', 'Total USD']
+  ];
+
+  Object.entries(byCategory).sort((a, b) => b[1].PYG - a[1].PYG).forEach(([cat, data]) => {
+    rows.push([labelFor(CATEGORY_OPTIONS, cat), data.count, data.PYG, data.USD]);
+  });
+
+  rows.push([], ['Por método de pago', 'Items', 'Total PYG', 'Total USD']);
+  Object.entries(byMethod).sort((a, b) => b[1].count - a[1].count).forEach(([method, data]) => {
+    rows.push([labelFor(METHOD_OPTIONS, method), data.count, data.PYG, data.USD]);
+  });
+  return rows;
+}
+
+// ─── XLSX writer ───
+function worksheetXml(rows, autoFilter) {
+  const rowXml = rows.map((row, rIdx) => {
+    const cells = row.map((value, cIdx) => cellXml(value, `${colName(cIdx + 1)}${rIdx + 1}`, rIdx === 0)).join('');
+    return `<row r="${rIdx + 1}">${cells}</row>`;
+  }).join('');
+  const maxCols = rows.reduce((max, row) => Math.max(max, row.length), 1);
+  const filter = autoFilter && rows.length > 1 ? `<autoFilter ref="A1:${colName(maxCols)}${rows.length}"/>` : '';
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+  <sheetFormatPr defaultRowHeight="16"/>
+  ${columnWidths(maxCols)}
+  <sheetData>${rowXml}</sheetData>
+  ${filter}
+</worksheet>`;
+}
+
+function cellXml(value, ref, header) {
+  const style = header ? ' s="1"' : '';
+  if (typeof value === 'number' && Number.isFinite(value)) return `<c r="${ref}"${style}><v>${value}</v></c>`;
+  return `<c r="${ref}" t="inlineStr"${style}><is><t>${xmlEsc(value == null ? '' : String(value))}</t></is></c>`;
+}
+
+function columnWidths(count) {
+  const widths = [14, 58, 16];
+  let xml = '<cols>';
+  for (let i = 1; i <= count; i++) xml += `<col min="${i}" max="${i}" width="${widths[i - 1] || 18}" customWidth="1"/>`;
+  return xml + '</cols>';
+}
+
+function colName(num) {
+  let s = '';
+  while (num > 0) {
+    const m = (num - 1) % 26;
+    s = String.fromCharCode(65 + m) + s;
+    num = Math.floor((num - m) / 26);
+  }
+  return s;
+}
+
+function contentTypesXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`;
+}
+
+function rootRelsXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+}
+
+function workbookXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Comprobantes" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`;
+}
+
+function workbookRelsXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+}
+
+function stylesXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>
+  <fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0"/></cellXfs>
+</styleSheet>`;
+}
+
+// ─── Helpers ───
+function getSelectedReceipts() {
+  return allMessages.filter(m => m.isReceipt && m.included);
+}
+
+function exportDate(msg) {
+  return msg.date || (msg.dateISO ? msg.dateISO.split('-').reverse().join('/') : '');
+}
+
+function totalsByCurrency(items) {
+  return items.reduce((acc, m) => {
+    if (m.amount) acc[m.currency || 'PYG'] = (acc[m.currency || 'PYG'] || 0) + m.amount;
+    return acc;
+  }, { PYG: 0, USD: 0, count: items.length });
+}
+
+function groupTotals(items, keyFn) {
+  return items.reduce((acc, m) => {
+    const key = keyFn(m);
+    if (!acc[key]) acc[key] = { PYG: 0, USD: 0, count: 0 };
+    acc[key].count++;
+    if (m.amount) acc[key][m.currency || 'PYG'] += m.amount;
+    return acc;
+  }, {});
+}
+
+function formatTotals(totals) {
+  const parts = [];
+  if (totals.PYG) parts.push(`₲ ${formatNum(totals.PYG)}`);
+  if (totals.USD) parts.push(`USD ${formatNum(totals.USD)}`);
+  return parts.length ? parts.join(' | ') : '₲ 0';
+}
+
+function formatMoney(value, currency = 'PYG') {
+  if (!value) return '—';
+  return currency === 'USD' ? `USD ${formatNum(value)}` : `₲ ${formatNum(value)}`;
+}
+
+function formatNum(n) {
+  if (n === null || n === undefined || n === '') return '—';
+  return Number(n).toLocaleString('es-PY');
+}
+
+function labelFor(options, value) {
+  return (options.find(([v]) => v === value) || ['', value || 'Sin definir'])[1];
+}
+
+function labelReceiptType(value) {
+  const labels = {
+    factura: 'Factura',
+    recibo: 'Recibo',
+    ticket: 'Ticket',
+    comprobante: 'Comprobante',
+    transferencia: 'Transferencia',
+    deposito: 'Depósito',
+    efectivo: 'Efectivo',
+    tarjeta: 'Tarjeta',
+    cheque: 'Cheque',
+    qr_billetera: 'QR/billetera',
+    gasto_detectado: 'Gasto detectado',
+    adjunto_posible: 'Adjunto posible',
+    manual: 'Manual'
+  };
+  return labels[value] || value || 'Sin definir';
+}
+
+function oneLine(text, max) {
+  const s = String(text || '').replace(/\s+/g, ' ').trim();
+  return s.length > max ? s.slice(0, max - 3) + '...' : s;
+}
+
+function findMessageByAttachment(name) {
+  return allMessages.find(m => m.attachments.includes(name) && m.isReceipt && m.included)
+    || allMessages.find(m => m.attachments.includes(name) && m.linkedTo === null)
+    || allMessages.find(m => m.attachments.includes(name));
+}
+
+function csvCell(value) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
+function downloadBlob(blob, filename) {
+  const a = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function switchTab(name) {
+  activeTab = name;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+  document.getElementById('tab-' + name).classList.remove('hidden');
+  renderAll();
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+
+function escAttr(s) {
+  return escHtml(s).replace(/"/g, '&quot;');
+}
+
+function xmlEsc(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function escapeRegex(s) {
+  return String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function jsStr(s) {
+  return JSON.stringify(String(s));
+}
+</script>
+</body>
+</html>
